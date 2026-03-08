@@ -1,4 +1,5 @@
 import { REST, Routes, ActivityType } from "discord.js";
+import interactionHandler from "./interactionCreate.js";
 
 export default {
   name: "ready",
@@ -19,6 +20,10 @@ export default {
       console.log("Global slash commands registered.");
     } catch (error) {
       console.error(error);
+    }
+
+    if (interactionHandler.init) {
+      await interactionHandler.init(client);
     }
   },
 };
