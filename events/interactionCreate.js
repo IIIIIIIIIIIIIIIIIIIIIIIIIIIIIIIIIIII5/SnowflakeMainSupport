@@ -299,7 +299,7 @@ export default {
         new ButtonBuilder().setCustomId("confirm_close_no").setLabel("Cancel").setStyle(ButtonStyle.Secondary)
       );
 
-      return Interaction.reply({ embeds:[confirmEmbed],components:[row] });
+      return Interaction.editReply({ embeds: [confirmEmbed], components: [row] });
     }
 
     if (Interaction.customId === "confirm_close_no")
