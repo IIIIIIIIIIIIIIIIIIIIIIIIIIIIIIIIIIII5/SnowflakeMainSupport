@@ -1,0 +1,17 @@
+{
+  "name": "ticket-bot",
+  "version": "1.0.0",
+  "description": "A Discord ticket bot",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.0",
+    "@aws-sdk/client-s3": "^3.373.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
