@@ -16,7 +16,7 @@ export default {
     const Channel = interaction.channel;
     const Member = interaction.member;
 
-    const ALLOWED_ROLES = [
+    const AllowedRoles = [
       "1443622126203572304",
       "1386369108408406096",
       "1398691257777393665",
