@@ -66,22 +66,6 @@ async function SaveTickets(tickets) {
   });
 }
 
-async function UploadToR2(buffer, key, contentType) {
-  const cmd = new PutObjectCommand({
-    Bucket: process.env.R2Bucket,
-    Key: key,
-    Body: buffer,
-    ContentType: contentType,
-    ACL: "public-read"
-  });
-  try {
-    await R2.send(cmd);
-    return `${process.env.R2PublicBase}/${key}`;
-  } catch {
-    return null;
-  }
-}
-
 function EscapeHtml(text) {
   return text || "";
 }
@@ -367,22 +351,16 @@ export default {
     const channel = await Guild.channels.create({
       name:`ticket-${User.username}`,
       type:ChannelType.GuildText,
-      parent:config.category
+      parent:config.category,
+      lockPermissions:true
     });
 
     await channel.permissionOverwrites.edit(User.id,{
       ViewChannel:true,
       SendMessages:true,
-      AttachFiles:true
+      AttachFiles:true,
+      ReadMessageHistory:true
     });
-
-    for (const role of config.roles) {
-      await channel.permissionOverwrites.edit(role,{
-        ViewChannel:true,
-        SendMessages:true,
-        ReadMessageHistory:true
-      });
-    }
 
     ActiveTickets[channel.id] = {
       ownerId:User.id,
