@@ -43,6 +43,8 @@ const TicketTypes = {
   }
 };
 
+const ClaimLocks = new Set();
+
 const R2 = new S3Client({
   endpoint: `https://${process.env.R2AccountId}.r2.cloudflarestorage.com`,
   region: "auto",
@@ -232,51 +234,62 @@ export default {
     const TicketData = ActiveTickets[Interaction.channel?.id];
 
     if (Interaction.customId === "claim_ticket") {
-      if (!TicketData)
-        return Interaction.editReply({ content: "Ticket data not found." });
+      if (ClaimLocks.has(Interaction.channel.id))
+        return Interaction.editReply({ content: "Claim already processing." });
 
-      if (TicketData.claimerId)
-        return Interaction.editReply({ content: "Ticket already claimed." });
+      ClaimLocks.add(Interaction.channel.id);
 
-      const config = TicketTypes[TicketData.categoryType];
+      try {
+        if (!TicketData)
+          return Interaction.editReply({ content: "Ticket data not found." });
 
-      const member = await Guild.members.fetch(User.id);
+        if (TicketData.claimerId)
+          return Interaction.editReply({ content: "Ticket already claimed." });
 
-      const hasRole = member.roles.cache.some(r => config.roles.includes(r.id));
+        const config = TicketTypes[TicketData.categoryType];
+        const member = await Guild.members.fetch(User.id);
+        const hasRole = member.roles.cache.some(r => config.roles.includes(r.id));
 
-      if (!hasRole && !member.permissions.has(PermissionsBitField.Flags.Administrator))
-        return Interaction.editReply({ content: "No permission." });
+        if (!hasRole && !member.permissions.has(PermissionsBitField.Flags.Administrator))
+          return Interaction.editReply({ content: "No permission." });
 
-      TicketData.claimerId = User.id;
-      ActiveTickets[Interaction.channel.id] = TicketData;
+        TicketData.claimerId = User.id;
+        ActiveTickets[Interaction.channel.id] = TicketData;
 
-      await SaveTickets(ActiveTickets);
+        await SaveTickets(ActiveTickets);
 
-      await Interaction.channel.permissionOverwrites.edit(User.id,{
-        ViewChannel:true,
-        SendMessages:true
-      });
+        await Interaction.editReply({ content: `You claimed this ticket.` });
 
-      const closeOnly = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("close_ticket")
-          .setLabel("Close Ticket")
-          .setStyle(ButtonStyle.Danger)
-      );
+        await Interaction.channel.permissionOverwrites.edit(User.id,{
+          ViewChannel:true,
+          SendMessages:true
+        });
 
-      const messages = await Interaction.channel.messages.fetch({ limit: 20 });
-      const ticketMessage = messages.find(m =>
-        m.author.id === Client.user.id &&
-        m.components.length &&
-        m.components[0].components.some(b => b.customId === "claim_ticket")
-      );
+        const closeOnly = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId("close_ticket")
+            .setLabel("Close Ticket")
+            .setStyle(ButtonStyle.Danger)
+        );
 
-      if (ticketMessage) {
-        await ticketMessage.edit({ components: [closeOnly] });
+        const messages = await Interaction.channel.messages.fetch({ limit: 20 });
+
+        const ticketMessage = messages.find(m =>
+          m.author.id === Client.user.id &&
+          m.components.length &&
+          m.components[0].components.some(b => b.customId === "claim_ticket")
+        );
+
+        if (ticketMessage) {
+          await ticketMessage.edit({ components: [closeOnly] });
+        }
+
+        await Interaction.channel.send(`Ticket claimed by <@${User.id}>`);
+      } finally {
+        ClaimLocks.delete(Interaction.channel.id);
       }
 
-      await Interaction.channel.send(`Ticket claimed by <@${User.id}>`);
-      return Interaction.editReply({ content:`You claimed this ticket.` });
+      return;
     }
 
     if (Interaction.customId === "close_ticket") {
