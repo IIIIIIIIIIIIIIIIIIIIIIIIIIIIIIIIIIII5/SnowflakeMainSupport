@@ -71,7 +71,6 @@ function EscapeHtml(text) {
 }
 
 async function GenerateTranscriptHtml(ChannelName, Messages, Guild) {
-
   const Css = `
     body { font-family: Segoe UI; background:#36393f; color:#dcddde; padding:20px }
     h1 { color:white }
@@ -97,7 +96,6 @@ async function GenerateTranscriptHtml(ChannelName, Messages, Guild) {
   `;
 
   Messages.reverse().forEach(m => {
-
     const Time = new Date(m.createdTimestamp).toLocaleString();
 
     let content = m.content || "";
@@ -135,7 +133,6 @@ async function GenerateTranscriptHtml(ChannelName, Messages, Guild) {
 }
 
 async function UploadTranscript(ChannelId, Html) {
-
   const Key = `${ChannelId}.html`;
 
   const Command = new PutObjectCommand({
@@ -152,7 +149,6 @@ async function UploadTranscript(ChannelId, Html) {
 }
 
 async function SendPrompt(Client) {
-
   const channel = await Client.channels.fetch(PromptChannelId).catch(() => null);
 
   if (!channel) return;
@@ -169,7 +165,6 @@ async function SendPrompt(Client) {
     .setColor("Blue");
 
   const row = new ActionRowBuilder().addComponents(
-
     new ButtonBuilder()
       .setCustomId("report_player")
       .setLabel("Report a Player")
@@ -196,11 +191,9 @@ async function SendPrompt(Client) {
 }
 
 export default {
-
   name: "interactionCreate",
 
   async execute(Interaction, Client) {
-
     const Guild = Interaction.guild;
     const User = Interaction.user;
 
@@ -209,7 +202,6 @@ export default {
     if (!Client.TicketCounts) Client.TicketCounts = {};
 
     for (const T of Object.values(ActiveTickets)) {
-
       if (!Client.TicketCounts[T.categoryType])
         Client.TicketCounts[T.categoryType] = 0;
 
@@ -218,7 +210,6 @@ export default {
     }
 
     if (Interaction.isChatInputCommand()) {
-
       const cmd = Client.commands.get(Interaction.commandName);
 
       if (!cmd) return;
@@ -241,7 +232,6 @@ export default {
     const TicketData = ActiveTickets[Interaction.channel?.id];
 
     if (Interaction.customId === "claim_ticket") {
-
       if (!TicketData)
         return Interaction.editReply({ content: "Ticket data not found." });
 
@@ -258,7 +248,6 @@ export default {
         return Interaction.editReply({ content: "No permission." });
 
       TicketData.claimerId = User.id;
-
       ActiveTickets[Interaction.channel.id] = TicketData;
 
       await SaveTickets(ActiveTickets);
@@ -268,11 +257,29 @@ export default {
         SendMessages:true
       });
 
-      return Interaction.editReply({ content:`Ticket claimed by ${User.tag}` });
+      const closeOnly = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("close_ticket")
+          .setLabel("Close Ticket")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      const messages = await Interaction.channel.messages.fetch({ limit: 20 });
+      const ticketMessage = messages.find(m =>
+        m.author.id === Client.user.id &&
+        m.components.length &&
+        m.components[0].components.some(b => b.customId === "claim_ticket")
+      );
+
+      if (ticketMessage) {
+        await ticketMessage.edit({ components: [closeOnly] });
+      }
+
+      await Interaction.channel.send(`Ticket claimed by <@${User.id}>`);
+      return Interaction.editReply({ content:`You claimed this ticket.` });
     }
 
     if (Interaction.customId === "close_ticket") {
-
       const confirmEmbed = new EmbedBuilder()
         .setTitle("Confirm Ticket Closure")
         .setColor("Red")
@@ -290,18 +297,13 @@ export default {
       return Interaction.editReply({ content:"Cancelled." });
 
     if (Interaction.customId === "confirm_close_yes") {
-
       if (!TicketData)
         return Interaction.editReply({ content:"Ticket data missing." });
 
       const config = TicketTypes[TicketData.categoryType];
-
       const logChannel = await Guild.channels.fetch(config.logChannel);
-
       const msgs = await Interaction.channel.messages.fetch({ limit:100 });
-
       const html = await GenerateTranscriptHtml(Interaction.channel.name,msgs,Guild);
-
       const url = await UploadTranscript(Interaction.channel.id,html);
 
       const embed = new EmbedBuilder()
@@ -320,7 +322,6 @@ export default {
       await logChannel.send({ embeds:[embed],components:[row] });
 
       delete ActiveTickets[Interaction.channel.id];
-
       await SaveTickets(ActiveTickets);
 
       await Interaction.editReply({ content:"Ticket closed." });
@@ -345,7 +346,6 @@ export default {
       Client.TicketCounts[Interaction.customId] = 0;
 
     Client.TicketCounts[Interaction.customId]++;
-
     const number = Client.TicketCounts[Interaction.customId];
 
     const channel = await Guild.channels.create({
